@@ -1,12 +1,12 @@
 import { Connection } from 'typeorm';
-import { DataElement, FailQueue } from './../models';
+import { DataElement, FailedDataElement } from './../models';
 
 interface Where {
   migrationId: number;
   isMigrated: boolean;
 }
 
-interface Payload {
+interface DHIS2DataElement {
   id: number;
   dataElement: string;
   value: number;
@@ -33,7 +33,7 @@ const createCounter = async (
   where: Where
 ): Promise<any> => {
   const failQueueCount: number = await connection
-    .getRepository(FailQueue)
+    .getRepository(FailedDataElement)
     .count({ where });
 
   if (!failQueueCount) {
@@ -70,9 +70,9 @@ const getFailQueues = async (
   connection: Connection,
   where: Where,
   skip: number
-): Promise<FailQueue[]> => {
+): Promise<FailedDataElement[]> => {
   const limit = Number(process.env.DFQW_DATA_CHUNK_SIZE || 1000);
-  return connection.getRepository(FailQueue).find({
+  return connection.getRepository(FailedDataElement).find({
     skip: skip * limit,
     take: limit,
     where,
@@ -85,14 +85,14 @@ const getFailQueues = async (
  * @param { Connection } connection - Connection manager instance
  * @param { Where } where - Where clause.
  */
-const updateFailQueues = async (
+const updateFailedDataElements = async (
   connection: Connection,
   ids: number[],
   update: object
 ): Promise<void> => {
   await connection
-    .createQueryBuilder(FailQueue, 'failqueue')
-    .update(FailQueue)
+    .createQueryBuilder(FailedDataElement, 'failqueue')
+    .update(FailedDataElement)
     .set(update)
     .where('failqueue.id IN (:failqueue)', { failqueue: ids })
     .execute();
@@ -105,25 +105,25 @@ const updateFailQueues = async (
  * @param { Where } where - Where clause.
  * @param { number } skip - fail queues to skip.
  */
-const preparePayload = async (
+const getDHIS2DataElements = async (
   connection: Connection,
-  failQueues: FailQueue[]
-): Promise<Payload[]> => {
-  const payLoad: Payload[] = [];
+  failedDataElements: FailedDataElement[]
+): Promise<DHIS2DataElement[]> => {
+  const dhis2DataElements: DHIS2DataElement[] = [];
 
-  for (const failQueue of failQueues) {
+  for (const failedDataElement of failedDataElements) {
     const {
       id,
       value,
       dataElementId,
       period,
       organizationUnitCode,
-    } = failQueue;
+    } = failedDataElement;
 
     const dataElement = await getDataElement(connection, dataElementId);
 
     if (dataElement) {
-      await payLoad.push({
+      await dhis2DataElements.push({
         dataElement: dataElement.dataElementId,
         id,
         orgUnit: organizationUnitCode,
@@ -131,19 +131,20 @@ const preparePayload = async (
         value,
       });
     } else {
+      // TODO: log this with winston
       await console.log('data element missing');
     }
   }
 
-  return payLoad;
+  return dhis2DataElements;
 };
 
 /**
  * Get payload ids
  *
- * @param { Payload } payload -  payload.
+ * @param { DHIS2DataElement } payload -  payload.
  */
-const getPayloadId = (payload: Payload[]): number[] => {
+const getPayloadId = (payload: DHIS2DataElement[]): number[] => {
   const ids: number[] = [];
 
   for (const row of payload) {
@@ -159,8 +160,8 @@ export {
   getFailQueues,
   getPayloadId,
   Message,
-  Payload,
-  preparePayload,
-  updateFailQueues,
+  DHIS2DataElement,
+  getDHIS2DataElements,
+  updateFailedDataElements,
   Where
 };

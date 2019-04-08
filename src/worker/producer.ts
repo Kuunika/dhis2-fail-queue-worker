@@ -1,7 +1,6 @@
 import Worker = require('tortoise');
 import { Message } from './helpers';
-
-const env = process.env;
+import { DotenvParseOutput } from 'dotenv';
 
 /**
  * Publish message to email queue.
@@ -11,11 +10,12 @@ const env = process.env;
  * @param { object } message - Message
  */
 const publishMessage = async (
+  config: DotenvParseOutput,
   worker: Worker,
   queueName: string,
   message: Message
 ): Promise<void> => {
-  const options: object = { durable: env.DFQW_QUEUE_DURABLE || true };
+  const options: object = { durable: config.DFQW_QUEUE_DURABLE || true };
   await worker.queue(queueName, options).publish(message);
 };
 

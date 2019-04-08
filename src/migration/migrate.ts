@@ -1,50 +1,63 @@
 import { Connection } from 'typeorm';
-import { connectToDatabase } from '../datasource';
-import { FailQueue } from './../models';
-
+import Worker = require('tortoise');
+import { DotenvParseOutput } from 'dotenv';
 import moment = require('moment');
 
-import Worker = require('tortoise');
+import { FailedDataElement } from './../models';
 
 import {
   createCounter,
   getFailQueues,
   getPayloadId,
-  preparePayload,
-  updateFailQueues,
+  getDHIS2DataElements,
+  updateFailedDataElements,
   Where
 } from './helpers';
 
-import { Payload, query } from '../query';
-import { Message, publishMessage } from '../worker';
-
-const env = process.env;
+import { DHIS2DataElement, query as sendPayload } from '../query';
+import { Message, pushToEmailQueue, pushToFailQueue } from '../worker';
+import { PusherLogger } from '../Logger';
 
 export const migrate = async (
+  config: DotenvParseOutput,
+  connection: Connection,
   worker: Worker,
   message: Message
 ): Promise<boolean> => {
-  const connection: Connection = await connectToDatabase();
   let offset = 0;
   let failedIds: number[] = [0];
   let successIds: number[] = [0];
-  let migrationFailed = false;
 
-  const { migrationId = 0, attempts = 1, email, client, channelId } = message;
+  let hasMigrationFailed = false;
+
+  const { migrationId = 0, attempts = 1, channelId } = message;
+
+  const pusherLogger = await new PusherLogger(config, channelId);
 
   const where: Where = { migrationId, isMigrated: false };
-  const counter = await createCounter(connection, where);
+  const chunkCounter = await createCounter(connection, where);
 
-  for (const count of counter) {
-    const failQueues: FailQueue[] = await getFailQueues(
+  for (const count of chunkCounter) {
+    console.log('processing chunk #: ', offset + 1);
+    const failedDataElements: FailedDataElement[] = await getFailQueues(
       connection,
       where,
       offset
     );
 
-    if (failQueues) {
-      const payload: Payload[] = await preparePayload(connection, failQueues);
-      const payloadIsSent: boolean = await query(payload, failQueues.length);
+    await pusherLogger.info(`chunk ${offset + 1} of ${chunkCounter.length}`);
+
+    if (failedDataElements) {
+      const dhis2Payload: DHIS2DataElement[] = await getDHIS2DataElements(
+        connection,
+        failedDataElements
+      );
+
+      const payloadIsSent: boolean = await sendPayload(
+        config,
+        dhis2Payload,
+        failedDataElements.length
+      );
 
       await console.log(
         count,
@@ -55,57 +68,46 @@ export const migrate = async (
       );
 
       if (!payloadIsSent) {
-        migrationFailed = true;
-        failedIds = failedIds.concat(await getPayloadId(payload));
+        hasMigrationFailed = true;
+        failedIds = failedIds.concat(await getPayloadId(dhis2Payload));
       } else {
-        successIds = successIds.concat(await getPayloadId(payload));
+        successIds = successIds.concat(await getPayloadId(dhis2Payload));
       }
-    } else {
-      migrationFailed = true;
     }
+
+    if (!failedDataElements) {
+      hasMigrationFailed = true;
+    }
+
     offset++;
   }
 
-  await updateFailQueues(connection, successIds, {
+  await updateFailedDataElements(connection, successIds, {
     isMigrated: true,
     isProcessed: true,
   });
 
-  await updateFailQueues(connection, failedIds, {
+  await updateFailedDataElements(connection, failedIds, {
     attempts,
     isProcessed: true,
   });
 
-  if (migrationFailed) {
-    const queueName = env.DFQW_QUEUE_NAME || 'DHIS2_INTEGRATION_FAIL_QUEUE';
+  if (hasMigrationFailed) {
     const date: any = moment();
-
-    const producerMessage: Message = {
+    const failQueueMessage: Message = {
+      ...message,
       attempts,
-      channelId,
-      client,
-      email,
       lastAttempt: date,
-      migrationId,
     };
-
-    await publishMessage(worker, queueName, producerMessage);
+    await pushToFailQueue(config, worker, failQueueMessage);
   } else {
-    const queueName =
-      env.DFQW_EMAIL_QUEUE_NAME || 'DHIS2_EMAIL_INTEGRATION_QUEUE';
-
     const producerMessage: Message = {
-      channelId,
-      client,
-      email,
-      migrationFailed,
-      migrationId,
+      ...message,
+      migrationFailed: hasMigrationFailed,
       source: 'failqueue',
     };
-
-    await publishMessage(worker, queueName, producerMessage);
+    await pushToEmailQueue(config, worker, producerMessage);
   }
 
-  connection.close();
-  return migrationFailed;
+  return hasMigrationFailed;
 };

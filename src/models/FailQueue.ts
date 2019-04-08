@@ -1,7 +1,7 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: "FailQueue" })
-export class FailQueue {
+@Entity({ name: 'FailQueue' })
+export class FailedDataElement {
   @PrimaryGeneratedColumn()
   public id: number;
 

@@ -1,6 +1,9 @@
+import Worker = require('tortoise');
+import { Connection } from 'typeorm';
+import { DotenvParseOutput } from 'dotenv';
+
 import { migrate } from './../migration';
 
-import Worker = require('tortoise');
 import {
   consume,
   createWorker,
@@ -11,29 +14,37 @@ import {
   isWaiting
 } from './helpers';
 
-const env = process.env;
+const { log } = console;
 
-export const consumer = async (): Promise<void> => {
-  const host: string | undefined = env.DFQW_QUEUE_HOST || 'amqp://localhost';
-  const worker: Worker = await createWorker(host);
+export const startWorker = async (
+  config: DotenvParseOutput,
+  connection: Connection
+): Promise<void> => {
+  const worker: Worker = await createWorker(config.DFQW_QUEUE_HOST);
 
-  const callback = async (message: any, ack: any) => {
+  const callback = async (message: string, ack: () => void) => {
     try {
       const parsedMessage: Message = JSON.parse(message);
 
-      const { lastAttempt = undefined, attempts = 1 } = parsedMessage;
-      const inWaiting: boolean = await isWaiting(lastAttempt);
+      log(parsedMessage);
+      log();
+
+      const { lastAttempt, attempts = 1 } = parsedMessage;
+      const inWaiting: boolean = await isWaiting(config, lastAttempt);
 
       if (!inWaiting) {
         parsedMessage.attempts = attempts + 1;
-        await migrate(worker, parsedMessage);
+        await migrate(config, connection, worker, parsedMessage);
       } else {
-        const inAttempt: boolean = areAttemptsAvailable(attempts);
+        const inAttempt: boolean = areAttemptsAvailable(config, attempts);
+        console.log(attempts, ' : ', inAttempt);
         if (inAttempt) {
-          await pushToFailQueue(worker, parsedMessage);
-          console.log('in attempt', inAttempt, attempts);
+          log('attempt : #' + attempts);
+          await pushToFailQueue(config, worker, parsedMessage);
         } else {
-          await pushToEmailQueue(worker, parsedMessage);
+          parsedMessage.migrationFailed = true;
+          parsedMessage.source = 'failqueue';
+          await pushToEmailQueue(config, worker, parsedMessage);
         }
       }
     } catch (error) {
@@ -43,7 +54,6 @@ export const consumer = async (): Promise<void> => {
     ack();
   };
 
-  const defaultQueueName = 'DHIS2_INTEGRATION_FAIL_QUEUE';
-  const queueName = process.env.DFQW_QUEUE_NAME || defaultQueueName;
-  await consume(worker, queueName, callback);
+  // TODO: process message
+  await consume(worker, config.DFQW_QUEUE_NAME, callback);
 };

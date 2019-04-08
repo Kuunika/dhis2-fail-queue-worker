@@ -1,23 +1,24 @@
 import { join } from 'path';
 import 'reflect-metadata';
 
-import { consumer } from './worker';
-import { DotenvParseOutput, loadConfig } from './config';
+import { loadConfig } from './config';
+import { connectToDatabase } from './datasource';
+import { startWorker } from './worker';
 
-const log = console.log;
 const path = join(__dirname, '..', '.env');
 
 /**
  * Main function
  */
 const main = async (): Promise<void> => {
-  const config: DotenvParseOutput | undefined = await loadConfig(path);
-  if (!config) {
-    log('application failed to load environment variables');
-    process.exit(1);
-  }
+  // TODO: Load configurations
+  const config = await loadConfig(path);
 
-  await consumer();
+  // TODO: connect to database
+  const connection = await connectToDatabase(config);
+
+  // TODO: start worker
+  await startWorker(config, connection);
 };
 
 main();

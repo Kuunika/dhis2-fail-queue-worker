@@ -1,7 +1,8 @@
-import axios from "axios";
+import axios from 'axios';
 
-import { Auth, getAuth, getURL } from "./config";
-import { Payload } from "./helper";
+import { Auth, getAuth } from './config';
+import { DHIS2DataElement } from './helper';
+import { DotenvParseOutput } from 'dotenv';
 
 const log = console.log;
 
@@ -15,21 +16,27 @@ const processResponse = (res: any, payloadSize): boolean => {
   return false;
 };
 
-const query = async (payload: Payload[], payloadSize): Promise<boolean> => {
-  const auth: Auth = await getAuth();
-  const url: string = `${await getURL()}/dataValueSets`;
+const sendDhis2Payload = async (
+  config: DotenvParseOutput,
+  dhis2DataElements: DHIS2DataElement[],
+  payloadSize
+): Promise<boolean> => {
+  const auth: Auth = await getAuth(config);
+  const url = `${config.DFQW_DHIS2_URL}/dataValueSets`;
 
   const options: object = {
     auth,
-    data: { dataValues: payload },
-    method: "POST",
-    url
+    data: { dataValues: dhis2DataElements },
+    method: 'POST',
+    url,
   };
 
-  const res: any = await axios(options).catch((err: Error) => log(err.message));
+  const res: any = await axios(options).catch((err: Error) =>
+    log(`query error: ${err.message}`)
+  );
   const isSuccessful: boolean = processResponse(res, payloadSize);
 
   return isSuccessful;
 };
 
-export { query };
+export { sendDhis2Payload as query };
