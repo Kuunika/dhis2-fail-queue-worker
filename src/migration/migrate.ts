@@ -1,96 +1,91 @@
 import { Connection } from 'typeorm';
 import Worker = require('tortoise');
 import { DotenvParseOutput } from 'dotenv';
-import moment = require('moment');
-
-import { FailedDataElement } from './../models';
 
 import {
-  createCounter,
-  getFailQueues,
-  getPayloadId,
-  getDHIS2DataElements,
-  updateFailedDataElements,
-  Where
-} from './helpers';
+  createChunkCounter,
+  getMigrationDataElements,
+  generateDHIS2Payload,
+  updateFailQueueDataElements,
+  persistSuccessfulMigrationDataElements,
+  updateMigration
+} from '.';
 
-import { DHIS2DataElement, query as sendPayload } from '../query';
 import { Message, pushToEmailQueue, pushToFailQueue } from '../worker';
 import { PusherLogger } from '../Logger';
+import { isDHISMigrationSuccessful, sendDhis2Payload } from '../query';
+import moment = require('moment');
+
+// import { DHIS2DataElement, query as sendPayload } from '../query';
 
 export const migrate = async (
   config: DotenvParseOutput,
   connection: Connection,
   worker: Worker,
   message: Message
-): Promise<boolean> => {
+): Promise<void> => {
   let offset = 0;
-  let failedIds: number[] = [0];
   let successIds: number[] = [0];
-
   let hasMigrationFailed = false;
 
-  const { migrationId = 0, attempts = 1, channelId } = message;
+  const { migrationId, channelId, attempts } = message;
 
   const pusherLogger = await new PusherLogger(config, channelId);
+  const chunkCounter = await createChunkCounter(
+    config,
+    connection,
+    migrationId
+  );
 
-  const where: Where = { migrationId, isMigrated: false };
-  const chunkCounter = await createCounter(connection, where);
+  for (const _ of chunkCounter) {
+    await pusherLogger.info(`chunk ${offset + 1} of ${chunkCounter.length}`);
 
-  for (const count of chunkCounter) {
-    console.log('processing chunk #: ', offset + 1);
-    const failedDataElements: FailedDataElement[] = await getFailQueues(
+    const migrationDataElements = await getMigrationDataElements(
+      config,
       connection,
-      where,
+      migrationId,
       offset
     );
 
-    await pusherLogger.info(`chunk ${offset + 1} of ${chunkCounter.length}`);
+    if (migrationDataElements) {
+      const [
+        dhis2DataElements,
+        migrationDataElementsIds,
+      ] = await generateDHIS2Payload(migrationDataElements);
 
-    if (failedDataElements) {
-      const dhis2Payload: DHIS2DataElement[] = await getDHIS2DataElements(
-        connection,
-        failedDataElements
+      const dhis2Response = await sendDhis2Payload(config, dhis2DataElements);
+
+      const wasDHIS2MigrationSuccessful = isDHISMigrationSuccessful(
+        dhis2Response,
+        dhis2DataElements.length
       );
 
-      const payloadIsSent: boolean = await sendPayload(
-        config,
-        dhis2Payload,
-        failedDataElements.length
+      await pusherLogger.info(
+        'wasDHIS2MigrationSuccessful' + wasDHIS2MigrationSuccessful
       );
 
-      await console.log(
-        count,
-        `chunk: `,
-        offset + 1,
-        `migration ${migrationId}`,
-        payloadIsSent
-      );
-
-      if (!payloadIsSent) {
+      if (!wasDHIS2MigrationSuccessful) {
         hasMigrationFailed = true;
-        failedIds = failedIds.concat(await getPayloadId(dhis2Payload));
       } else {
-        successIds = successIds.concat(await getPayloadId(dhis2Payload));
+        successIds = successIds.concat(migrationDataElementsIds);
       }
     }
 
-    if (!failedDataElements) {
+    if (!migrationDataElements) {
       hasMigrationFailed = true;
     }
 
     offset++;
   }
 
-  await updateFailedDataElements(connection, successIds, {
-    isMigrated: true,
-    isProcessed: true,
-  });
+  await updateFailQueueDataElements(connection, migrationId, attempts);
+  await persistSuccessfulMigrationDataElements(connection, successIds);
 
-  await updateFailedDataElements(connection, failedIds, {
-    attempts,
-    isProcessed: true,
-  });
+  await updateMigration(
+    connection,
+    migrationId,
+    successIds.slice(1)
+  );
 
   if (hasMigrationFailed) {
     const date: any = moment();
@@ -109,5 +104,7 @@ export const migrate = async (
     await pushToEmailQueue(config, worker, producerMessage);
   }
 
-  return hasMigrationFailed;
+  offset = 0;
+  successIds = [0];
+
 };

@@ -1,14 +1,17 @@
 import axios from 'axios';
 
 import { Auth, getAuth } from './config';
-import { DHIS2DataElement } from './helper';
 import { DotenvParseOutput } from 'dotenv';
+import { DHIS2DataElement } from 'src/migration';
 
 const log = console.log;
 
-const processResponse = (res: any, payloadSize): boolean => {
-  if (res) {
-    const updated = res.data.importCount.updated;
+export const isDHISMigrationSuccessful = (
+  dhis2Response: any,
+  payloadSize: number
+): boolean => {
+  if (dhis2Response) {
+    const updated = dhis2Response.data.importCount.updated;
     if (payloadSize === Number(updated)) {
       return true;
     }
@@ -16,11 +19,10 @@ const processResponse = (res: any, payloadSize): boolean => {
   return false;
 };
 
-const sendDhis2Payload = async (
+export const sendDhis2Payload = async (
   config: DotenvParseOutput,
-  dhis2DataElements: DHIS2DataElement[],
-  payloadSize
-): Promise<boolean> => {
+  dhis2DataElements: DHIS2DataElement[]
+): Promise<any> => {
   const auth: Auth = await getAuth(config);
   const url = `${config.DFQW_DHIS2_URL}/dataValueSets`;
 
@@ -31,12 +33,7 @@ const sendDhis2Payload = async (
     url,
   };
 
-  const res: any = await axios(options).catch((err: Error) =>
+  return await axios(options).catch((err: Error) =>
     log(`query error: ${err.message}`)
   );
-  const isSuccessful: boolean = processResponse(res, payloadSize);
-
-  return isSuccessful;
 };
-
-export { sendDhis2Payload as query };
