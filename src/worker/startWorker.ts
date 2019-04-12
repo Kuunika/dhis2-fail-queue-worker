@@ -2,17 +2,16 @@ import Worker = require('tortoise');
 import { Connection } from 'typeorm';
 import { DotenvParseOutput } from 'dotenv';
 
+import { createWorker, consumeMessage } from '.';
 import { migrate } from './../migration';
 
 import {
-  consume,
-  createWorker,
   Message,
   pushToFailQueue,
   pushToEmailQueue,
   areAttemptsAvailable,
   isWaiting
-} from './helpers';
+} from '.';
 
 const { log } = console;
 
@@ -20,7 +19,7 @@ export const startWorker = async (
   config: DotenvParseOutput,
   connection: Connection
 ): Promise<void> => {
-  const worker: Worker = await createWorker(config.DFQW_QUEUE_HOST);
+  const worker: Worker = await createWorker(config);
 
   const callback = async (message: string, ack: () => void) => {
     try {
@@ -30,7 +29,7 @@ export const startWorker = async (
       log();
 
       const { lastAttempt, attempts = 1 } = parsedMessage;
-      const inWaiting: boolean = await isWaiting(config, lastAttempt);
+      const inWaiting = await isWaiting(config, lastAttempt);
 
       if (!inWaiting) {
         parsedMessage.attempts = attempts + 1;
@@ -39,7 +38,6 @@ export const startWorker = async (
         const inAttempt: boolean = areAttemptsAvailable(config, attempts);
         console.log(attempts, ' : ', inAttempt);
         if (inAttempt) {
-          log('attempt : #' + attempts);
           await pushToFailQueue(config, worker, parsedMessage);
         } else {
           parsedMessage.migrationFailed = true;
@@ -54,6 +52,5 @@ export const startWorker = async (
     ack();
   };
 
-  // TODO: process message
-  await consume(worker, config.DFQW_QUEUE_NAME, callback);
+  await consumeMessage(config, worker, callback);
 };
