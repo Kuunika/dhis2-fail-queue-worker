@@ -14,7 +14,6 @@ const loadConfig = async (
   if (!existsSync(path)) {
     // TODO: return file not found exception
     throw new Error('message');
-    return undefined;
   }
 
   const { error, parsed } = await config({ path });
