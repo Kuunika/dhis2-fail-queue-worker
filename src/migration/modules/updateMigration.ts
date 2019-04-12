@@ -1,5 +1,5 @@
 import { Connection } from 'typeorm';
-import { Migration } from 'src/models';
+import { Migration } from '../../models';
 
 export const updateMigration = async (
   connection: Connection,
