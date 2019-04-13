@@ -4,7 +4,7 @@ import { DotenvParseOutput } from 'dotenv';
 export const consumeMessage = async (
   config: DotenvParseOutput,
   worker: Worker,
-  callback: (message: string, ack: () => Promise<void>) => void
+  callback: (message: string, acknowledgment: () => Promise<void>) => void
 ): Promise<void> => {
   const options: object = { durable: config.DFQW_QUEUE_DURABLE || true };
 

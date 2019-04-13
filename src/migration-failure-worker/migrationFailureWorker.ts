@@ -9,48 +9,48 @@ import {
   Message,
   pushToFailQueue,
   pushToEmailQueue,
-  areAttemptsAvailable,
-  isWaiting
+  attemptsNotExhausted,
+  inWaitingPeriod
 } from '.';
 
-const { log } = console;
+const { log, error } = console;
 
-export const startWorker = async (
+export const migrationFailureWorker = async (
   config: DotenvParseOutput,
   connection: Connection
 ): Promise<void> => {
-  const worker: Worker = await createWorker(config);
+  const worker: Worker = await createWorker(config).catch(e => error(e));
 
-  const callback = async (message: string, ack: () => void) => {
+  const processFailure = async (message: string, acknowledgment: () => void) => {
     try {
       const parsedMessage: Message = JSON.parse(message);
-
-      log(parsedMessage);
-      log();
+      log(parsedMessage, '\n');
 
       const { lastAttempt, attempts = 1 } = parsedMessage;
-      const inWaiting = await isWaiting(config, lastAttempt);
+      const inWaiting = await inWaitingPeriod(config, lastAttempt);
 
       if (!inWaiting) {
         parsedMessage.attempts = attempts + 1;
         await migrate(config, connection, worker, parsedMessage);
-      } else {
-        const inAttempt: boolean = areAttemptsAvailable(config, attempts);
-        console.log(attempts, ' : ', inAttempt);
+      }
+
+      if (inWaiting) {
+        const inAttempt = attemptsNotExhausted(config, attempts);
         if (inAttempt) {
           await pushToFailQueue(config, worker, parsedMessage);
-        } else {
+        }
+
+        if (!inAttempt) {
           parsedMessage.migrationFailed = true;
           parsedMessage.source = 'failqueue';
           await pushToEmailQueue(config, worker, parsedMessage);
         }
       }
-    } catch (error) {
-      console.log(error.message);
+    } catch (err) {
+      error(err.message);
     }
-
-    ack();
+    acknowledgment();
   };
 
-  await consumeMessage(config, worker, callback);
+  await consumeMessage(config, worker, processFailure);
 };

@@ -1,6 +1,6 @@
 import { DotenvParseOutput } from 'dotenv';
 
-export const areAttemptsAvailable = (
+export const attemptsNotExhausted = (
   config: DotenvParseOutput,
   attempts: number
 ): boolean => {

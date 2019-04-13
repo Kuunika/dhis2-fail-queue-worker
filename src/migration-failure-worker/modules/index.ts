@@ -1,5 +1,5 @@
-export * from './areAttemptsAvailable';
-export * from './inWaiting';
+export * from './attemptsNotExhausted';
+export * from './inWaitingPeriod';
 export * from './publishMessage';
 export * from './pushToEmailQueue';
 export * from './pushToFailQueue';

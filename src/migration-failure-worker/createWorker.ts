@@ -9,5 +9,8 @@ export const createWorker = async (
     connectRetryInterval: config.DFQW_QUEUE_CONNECT_RETRY_INTERVAL || 100,
   };
 
-  return await new Worker(config.DFQW_QUEUE_HOST || 'amqp://localhost', options);
+  const host = config.DFQW_QUEUE_HOST || 'amqp://localhost';
+  const worker = await new Worker(host, options);
+  worker.on(Worker.EVENTS.CONNECTIONDISCONNECTED, () => console.log('disconnected'));
+  return worker;
 };
