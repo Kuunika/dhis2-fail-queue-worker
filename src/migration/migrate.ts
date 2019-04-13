@@ -11,7 +11,7 @@ import {
   updateMigration
 } from '.';
 
-import { Message, pushToEmailQueue, pushToFailQueue } from '../worker';
+import { Message, pushToEmailQueue, pushToFailQueue } from '../migration-failure-worker';
 import { PusherLogger } from '../Logger';
 import { isDHISMigrationSuccessful, sendDhis2Payload } from '../query';
 import moment = require('moment');
