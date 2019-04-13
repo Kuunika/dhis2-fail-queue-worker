@@ -24,7 +24,7 @@ export const migrationFailureWorker = async (
   const processFailure = async (message: string, acknowledgment: () => void) => {
     try {
       const parsedMessage: Message = JSON.parse(message);
-      log(parsedMessage, '\n');
+      log('\n', parsedMessage);
 
       const { lastAttempt, attempts = 1 } = parsedMessage;
       const inWaiting = await inWaitingPeriod(config, lastAttempt);

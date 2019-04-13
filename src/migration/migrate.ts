@@ -61,12 +61,14 @@ export const migrate = async (
       );
 
       await pusherLogger.info(
-        'wasDHIS2MigrationSuccessful' + wasDHIS2MigrationSuccessful
+        'wasDHIS2MigrationSuccessful: ' + wasDHIS2MigrationSuccessful
       );
 
       if (!wasDHIS2MigrationSuccessful) {
         hasMigrationFailed = true;
-      } else {
+      }
+
+      if (wasDHIS2MigrationSuccessful) {
         successIds = successIds.concat(migrationDataElementsIds);
       }
     }
