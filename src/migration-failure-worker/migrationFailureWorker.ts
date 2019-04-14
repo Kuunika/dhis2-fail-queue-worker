@@ -9,8 +9,8 @@ import {
   Message,
   pushToFailQueue,
   pushToEmailQueue,
-  attemptsNotExhausted,
-  inWaitingPeriod
+  checkAttemptsAvailability,
+  isWaiting
 } from '.';
 
 const { log, error } = console;
@@ -27,20 +27,20 @@ export const migrationFailureWorker = async (
       log('\n', parsedMessage);
 
       const { lastAttempt, attempts = 1 } = parsedMessage;
-      const inWaiting = await inWaitingPeriod(config, lastAttempt);
+      const inWaitingPeriod = await isWaiting(config, lastAttempt);
 
-      if (!inWaiting) {
+      if (!inWaitingPeriod) {
         parsedMessage.attempts = attempts + 1;
         await migrate(config, connection, worker, parsedMessage);
       }
 
-      if (inWaiting) {
-        const inAttempt = attemptsNotExhausted(config, attempts);
-        if (inAttempt) {
+      if (inWaitingPeriod) {
+        const attemptsNotExhausted = checkAttemptsAvailability(config, attempts);
+        if (attemptsNotExhausted) {
           await pushToFailQueue(config, worker, parsedMessage);
         }
 
-        if (!inAttempt) {
+        if (!attemptsNotExhausted) {
           parsedMessage.migrationFailed = true;
           parsedMessage.source = 'failqueue';
           await pushToEmailQueue(config, worker, parsedMessage);

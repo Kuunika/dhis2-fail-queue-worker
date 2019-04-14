@@ -1,7 +1,7 @@
 import moment from 'moment';
 import { DotenvParseOutput } from 'dotenv';
 
-export const inWaitingPeriod = (
+export const isWaiting = (
   config: DotenvParseOutput,
   lastAttempt: any
 ): boolean => {
