@@ -1,6 +1,6 @@
 import { DotenvParseOutput } from 'dotenv';
 
-export const areAttemptsAvailable = (
+export const checkAttemptsAvailability = (
   config: DotenvParseOutput,
   attempts: number
 ): boolean => {

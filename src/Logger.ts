@@ -2,6 +2,7 @@ import { Logger, createLogger, format, transports } from 'winston';
 import Pusher = require('pusher');
 import { DotenvParseOutput } from 'dotenv';
 
+// TODO: This will go into a ADX Logger
 export class PusherLogger {
   private pusher: Pusher;
   private logger: Logger;

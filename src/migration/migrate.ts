@@ -11,7 +11,7 @@ import {
   updateMigration
 } from '.';
 
-import { Message, pushToEmailQueue, pushToFailQueue } from '../worker';
+import { Message, pushToEmailQueue, pushToFailQueue } from '../migration-failure-worker';
 import { PusherLogger } from '../Logger';
 import { isDHISMigrationSuccessful, sendDhis2Payload } from '../query';
 import moment = require('moment');
@@ -61,12 +61,14 @@ export const migrate = async (
       );
 
       await pusherLogger.info(
-        'wasDHIS2MigrationSuccessful' + wasDHIS2MigrationSuccessful
+        'wasDHIS2MigrationSuccessful: ' + wasDHIS2MigrationSuccessful
       );
 
       if (!wasDHIS2MigrationSuccessful) {
         hasMigrationFailed = true;
-      } else {
+      }
+
+      if (wasDHIS2MigrationSuccessful) {
         successIds = successIds.concat(migrationDataElementsIds);
       }
     }
