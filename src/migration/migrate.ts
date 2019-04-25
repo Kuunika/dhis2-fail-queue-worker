@@ -11,10 +11,9 @@ import {
   updateMigration
 } from '.';
 
-import { Message, pushToEmailQueue, pushToFailQueue } from '../migration-failure-worker';
+import { Message, pushToEmailQueue, pushToFailQueue, pushToLogWorker } from '../migration-failure-worker';
 import { isDHISMigrationSuccessful, sendDhis2Payload } from '../query';
 import moment = require('moment');
-import { pushToLogWorker } from 'src/migration-failure-worker/modules/pushToLogWorker';
 
 // import { DHIS2DataElement, query as sendPayload } from '../query';
 
