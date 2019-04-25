@@ -11,8 +11,7 @@ import {
   updateMigration
 } from '.';
 
-import { Message, pushToEmailQueue, pushToFailQueue } from '../migration-failure-worker';
-import { PusherLogger } from '../Logger';
+import { Message, pushToEmailQueue, pushToFailQueue, pushToLogWorker } from '../migration-failure-worker';
 import { isDHISMigrationSuccessful, sendDhis2Payload } from '../query';
 import moment = require('moment');
 
@@ -28,9 +27,10 @@ export const migrate = async (
   let successIds: number[] = [0];
   let hasMigrationFailed = false;
 
-  const { migrationId, channelId, attempts } = message;
+  const { migrationId, attempts } = message;
 
-  const pusherLogger = await new PusherLogger(config, channelId);
+  message.service = 'FAIL QUEUE WORKER';
+
   const chunkCounter = await createChunkCounter(
     config,
     connection,
@@ -38,7 +38,8 @@ export const migrate = async (
   );
 
   for (const _ of chunkCounter) {
-    await pusherLogger.info(`chunk ${offset + 1} of ${chunkCounter.length}`);
+    message.message = `chunk ${offset + 1} of ${chunkCounter.length}`;
+    await pushToLogWorker(config, worker, message);
 
     const migrationDataElements = await getMigrationDataElements(
       config,
@@ -60,9 +61,8 @@ export const migrate = async (
         dhis2DataElements.length
       );
 
-      await pusherLogger.info(
-        'wasDHIS2MigrationSuccessful: ' + wasDHIS2MigrationSuccessful
-      );
+      message.message = `wasDHIS2MigrationSuccessful: ${wasDHIS2MigrationSuccessful}`;
+      await pushToLogWorker(config, worker, message);
 
       if (!wasDHIS2MigrationSuccessful) {
         hasMigrationFailed = true;

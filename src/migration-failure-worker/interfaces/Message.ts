@@ -7,4 +7,6 @@ export interface Message {
   migrationFailed?: boolean;
   migrationId: number;
   source?: string;
+  service?: string;
+  message?: string;
 }
