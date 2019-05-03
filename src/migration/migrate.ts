@@ -108,5 +108,4 @@ export const migrate = async (
 
   offset = 0;
   successIds = [0];
-
 };

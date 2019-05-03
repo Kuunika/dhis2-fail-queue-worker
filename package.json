@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest /src/tests/ --verbose --detectOpenHandles",
+    "dev": "nodemon",
+    "test": "jest --verbose --env=node",
     "start": "ts-node src/index.ts"
   },
   "keywords": [],
@@ -13,9 +14,14 @@
   "devDependencies": {
     "@types/axios": "^0.14.0",
     "@types/dotenv": "^6.1.0",
+    "@types/express": "^4.16.1",
     "@types/jest": "^24.0.11",
     "@types/node": "^8.0.29",
     "@types/winston": "^2.4.4",
+    "body-parser": "^1.19.0",
+    "express": "^4.16.4",
+    "jest": "^24.7.1",
+    "nodemon": "^1.18.11",
     "ts-jest": "^24.0.0",
     "ts-node": "3.3.0",
     "typedoc": "^0.14.2",
@@ -24,7 +30,6 @@
   "dependencies": {
     "axios": "^0.18.0",
     "dotenv": "^7.0.0",
-    "jest": "^24.5.0",
     "moment": "^2.24.0",
     "mysql": "^2.16.0",
     "node-cron": "^2.0.3",
