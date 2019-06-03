@@ -17,9 +17,7 @@
     "@types/node": "^8.0.29",
     "@types/winston": "^2.4.4",
     "ts-jest": "^24.0.0",
-    "ts-node": "3.3.0",
-    "typedoc": "^0.14.2",
-    "typescript": "2.5.2"
+    "typedoc": "^0.14.2"
   },
   "dependencies": {
     "axios": "^0.18.0",
@@ -31,7 +29,9 @@
     "pusher": "^2.2.0",
     "reflect-metadata": "^0.1.10",
     "tortoise": "^1.0.1",
+    "ts-node": "^8.2.0",
     "typeorm": "0.2.15",
+    "typescript": "^3.5.1",
     "winston": "^3.2.1"
   }
 }
