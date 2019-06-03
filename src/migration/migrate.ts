@@ -37,6 +37,15 @@ export const migrate = async (
     migrationId
   );
 
+  await pushToLogWorker(worker, {
+    ...message,
+    message: JSON.stringify({
+      service: 'fail queue',
+      message: 'migration started',
+      migrating: true,
+    }),
+  });
+
   for (const _ of chunkCounter) {
     message.message = `chunk ${offset + 1} of ${chunkCounter.length}`;
     await pushToLogWorker(config, worker, message);
@@ -61,7 +70,15 @@ export const migrate = async (
         dhis2DataElements.length
       );
 
-      message.message = `wasDHIS2MigrationSuccessful: ${wasDHIS2MigrationSuccessful}`;
+      message.message = JSON.stringify({
+      service: 'migration',
+      message: 'migrating elements',
+      chunkSize: Number(config.DFQW_DATA_CHUNK_SIZE || 1000),
+      chunkNumber: offset + 1,
+      migrating: true,
+    });
+
+    await pushToLogWorker(worker, message);
       await pushToLogWorker(config, worker, message);
 
       if (!wasDHIS2MigrationSuccessful) {
@@ -108,4 +125,14 @@ export const migrate = async (
 
   offset = 0;
   successIds = [0];
+
+  await pushToLogWorker(worker, {
+    ...message,
+    message: JSON.stringify({
+      service: 'fail queue',
+      message: 'migration completed',
+      migrating: false,
+    }),
+  });
+
 };
