@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: 'MigrationDataElements' })
+@Entity({ name: 'Migrationdataelements' })
 export class MigrationDataElements {
   @PrimaryGeneratedColumn()
   public id: number;
