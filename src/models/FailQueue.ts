@@ -9,7 +9,7 @@ export class FailQueue {
   public migrationId: number;
 
   @Column()
-  public productId: number;
+  public dataElementCode: string;
 
   @Column()
   public attempts: number;
