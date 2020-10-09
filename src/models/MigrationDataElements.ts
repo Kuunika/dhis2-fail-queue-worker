@@ -6,9 +6,6 @@ export class MigrationDataElements {
   public id: number;
 
   @Column()
-  public productId: number;
-
-  @Column()
   public migrationId: number;
 
   @Column()
