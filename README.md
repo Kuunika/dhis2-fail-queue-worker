@@ -1,4 +1,6 @@
-# Awesome Project Build with TypeORM
+# DHIS2 Fail Queue Worker
+
+![version](https://img.shields.io/github/package-json/v/Kuunika/dhis2-fail-queue-worker?color=green&style=for-the-badge)
 
 Steps to run this project:
 
