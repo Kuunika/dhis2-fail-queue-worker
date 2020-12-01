@@ -9,7 +9,7 @@ export class MigrationDataElements {
   public migrationId: number;
 
   @Column()
-  public facilityId: number;
+  public facilityId: string;
 
   @Column()
   public value: number;
