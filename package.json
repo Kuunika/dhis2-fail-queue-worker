@@ -20,7 +20,7 @@
     "typedoc": "^0.14.2"
   },
   "dependencies": {
-    "axios": "^0.18.0",
+    "axios": "^0.21.1",
     "dotenv": "^7.0.0",
     "jest": "^24.5.0",
     "moment": "^2.24.0",
